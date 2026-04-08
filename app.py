@@ -503,6 +503,20 @@ def api_clear_logs():
     conn.close()
     return jsonify({"success": True, "message": "Login history cleared"})
 
+@app.route("/api/admin/login-logs/delete", methods=["POST"])
+@admin_required
+def api_delete_selected_logs():
+    d = request.get_json() or {}
+    ids = d.get("ids", [])
+    if not ids:
+        return jsonify({"error": "No IDs provided"}), 400
+    conn = get_db()
+    placeholders = ",".join("?" * len(ids))
+    conn.execute(f"DELETE FROM login_logs WHERE id IN ({placeholders})", ids)
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "message": f"Deleted {len(ids)} selected logs"})
+
 @app.route("/admin")
 def admin_page():
     u = session.get("user")
@@ -576,6 +590,40 @@ def api_delete_user(uid):
     conn.commit()
     conn.close()
     return jsonify({"success": True, "message": "User deleted"})
+
+@app.route("/api/admin/users/delete", methods=["POST"])
+@admin_required
+def api_delete_selected_users():
+    d = request.get_json() or {}
+    ids = d.get("ids", [])
+    if not ids:
+        return jsonify({"error": "No IDs provided"}), 400
+    
+    # Prevent deleting yourself
+    me = session.get("user", {})
+    if str(me.get("id")) in map(str, ids):
+        return jsonify({"error": "Cannot delete your own account"}), 400
+
+    conn = get_db()
+    placeholders = ",".join("?" * len(ids))
+    conn.execute(f"DELETE FROM users WHERE id IN ({placeholders})", ids)
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "message": f"Deleted {len(ids)} selected users"})
+
+@app.route("/api/admin/users/clear", methods=["DELETE"])
+@admin_required
+def api_clear_users():
+    me = session.get("user", {})
+    my_id = me.get("id")
+    if not my_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    conn = get_db()
+    conn.execute("DELETE FROM users WHERE id != ?", (my_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"success": True, "message": "All other users cleared"})
 
 if __name__=="__main__":
     init_db()
