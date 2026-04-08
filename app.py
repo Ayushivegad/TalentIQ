@@ -13,7 +13,7 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 import os, math, re, io, hashlib, sqlite3, json
 from functools import wraps
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 # Optional heavy parsers
 try:
@@ -92,7 +92,8 @@ def resolve_user(email, pw, ip=None):
     email = email.strip().lower()
     conn = get_db()
     row = conn.execute("SELECT * FROM users WHERE LOWER(email)=?", (email,)).fetchone()
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # Calculate IST correctly (UTC + 5 hours 30 mins)
+    now = (datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)).strftime("%Y-%m-%d %H:%M:%S")
     if row and row["password"] == hash_pw(pw):
         conn.execute("UPDATE users SET last_login=? WHERE id=?", (now, row["id"]))
         conn.execute(
