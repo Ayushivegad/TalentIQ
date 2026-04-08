@@ -109,10 +109,12 @@
  .tab-pane{display:none}
  .tab-pane.active{display:block}
 
- /* LOG STATUS */
  .status-success{color:var(--success);font-weight:600}
  .status-failed{color:var(--danger);font-weight:600}
  .mono{font-family:'IBM Plex Mono',monospace;font-size:11px}
+ .select-col{display:none;width:30px}
+ .select-user-col{display:none;width:30px}
+ .select-col.visible, .select-user-col.visible{display:table-cell}
  </style>
 </head>
 <body>
@@ -168,7 +170,10 @@
  <div class="card">
  <div class="card-header">
  <h2> All Users</h2>
+ <div style="display:flex;gap:8px;align-items:center">
  <span id="totalBadge" style="font-size:12px;color:var(--text3)"></span>
+ <button class="btn btn-danger btn-sm" onclick="handleDeleteUsers()"> Delete Users</button>
+ </div>
  </div>
  <div id="tableWrap">
  <div class="loading">Loading users…</div>
@@ -185,7 +190,7 @@
  <div style="display:flex;gap:8px;align-items:center">
  <span id="logCount" style="font-size:12px;color:var(--text3)"></span>
  <button class="btn btn-default btn-sm" onclick="loadLogs()">Refresh</button>
- <button class="btn btn-danger btn-sm" onclick="clearLogs()"> Clear All</button>
+ <button class="btn btn-danger btn-sm" onclick="handleDeleteLogs()"> Delete Logs</button>
  </div>
  </div>
  <div id="logsTableWrap"><div class="loading">Loading…</div></div>
@@ -297,6 +302,7 @@ function renderTable() {
  wrap.innerHTML = `
  <table>
  <thead><tr>
+ <th class="select-user-col"></th>
  <th>#</th>
  <th>User</th>
  <th>Email</th>
@@ -308,6 +314,7 @@ function renderTable() {
  <tbody>
  ${allUsers.map((u, i) => `
  <tr>
+ <td class="select-user-col"><input type="checkbox" class="user-cb" value="${u.id}"></td>
  <td style="color:var(--text4);font-size:11px;font-family:'IBM Plex Mono',monospace">${u.id}</td>
  <td>
  <div style="display:flex;align-items:center;gap:10px">
@@ -322,7 +329,6 @@ function renderTable() {
  <td>
  <div style="display:flex;gap:6px">
  <button class="btn btn-default btn-sm" onclick="openEditModal(${u.id})">Edit</button>
- <button class="btn btn-danger btn-sm" onclick="openDeleteModal(${u.id}, '${esc(u.name)}')" style="padding:0 10px;font-size:14px;font-weight:700">✕</button>
  </div>
  </td>
  </tr>
@@ -441,6 +447,54 @@ async function confirmDelete() {
  }
 }
 
+async function handleDeleteUsers() {
+ const selectCols = document.querySelectorAll('.select-user-col');
+ if (selectCols.length > 0 && !selectCols[0].classList.contains('visible')) {
+ selectCols.forEach(col => col.classList.add('visible'));
+ return;
+ }
+
+ const selected = Array.from(document.querySelectorAll('.user-cb:checked')).map(cb => cb.value);
+
+ // 1) If checkboxes are selected
+ if (selected.length > 0) {
+ if (!confirm('Are you sure you want to delete selected users?')) {
+ selectCols.forEach(col => col.classList.remove('visible'));
+ document.querySelectorAll('.user-cb').forEach(cb => cb.checked = false);
+ return;
+ }
+ try {
+ const r = await fetch('/api/admin/users/delete', {
+ method: 'POST',
+ headers: {'Content-Type': 'application/json'},
+ body: JSON.stringify({ ids: selected })
+ });
+ const d = await r.json();
+ if (!r.ok) { showPageAlert(d.error || 'Delete failed.', 'error'); return; }
+ showPageAlert(d.message || 'Selected users deleted.', 'success');
+ loadUsers();
+ } catch(e) {
+ showPageAlert('Network error: ' + e.message, 'error');
+ }
+ return;
+ }
+
+ // 2) If no checkboxes are selected
+ if (!confirm('Are you sure you want to delete all users?')) {
+ selectCols.forEach(col => col.classList.remove('visible'));
+ return;
+ }
+ try {
+ const r = await fetch('/api/admin/users/clear', { method: 'DELETE' });
+ const d = await r.json();
+ if (!r.ok) { showPageAlert(d.error || 'Clear failed.', 'error'); return; }
+ showPageAlert(d.message || 'All other users cleared.', 'success');
+ loadUsers();
+ } catch(e) {
+ showPageAlert('Network error: ' + e.message, 'error');
+ }
+}
+
 // ALERTS 
 function showPageAlert(msg, type) {
  const el = document.getElementById('pageAlert');
@@ -502,11 +556,13 @@ async function loadLogs() {
  wrap.innerHTML = `
  <table>
  <thead><tr>
+ <th class="select-col"></th>
  <th>#</th><th>Email</th><th>Name</th><th>Role</th><th>Status</th><th>IP Address</th><th>Date</th><th>Time</th>
  </tr></thead>
  <tbody>
  ${logs.map(l => `
  <tr>
+ <td class="select-col"><input type="checkbox" class="log-cb" value="${l.id}"></td>
  <td style="color:var(--text4);font-size:11px;font-family:'IBM Plex Mono',monospace">${l.id}</td>
  <td style="font-family:'IBM Plex Mono',monospace;font-size:12px">${esc(l.email || '—')}</td>
  <td style="font-weight:600">${esc(l.user_name || '—')}</td>
@@ -524,18 +580,60 @@ async function loadLogs() {
  }
 }
 
-async function clearLogs() {
- if (!confirm('Kya aap sach mein saari login history delete karna chahte hain?')) return;
+async function handleDeleteLogs() {
+ const selectCols = document.querySelectorAll('.select-col');
+ // If checkboxes are hidden, first click reveals them
+ if (selectCols.length > 0 && !selectCols[0].classList.contains('visible')) {
+ selectCols.forEach(col => col.classList.add('visible'));
+ return;
+ }
+
+ const selected = Array.from(document.querySelectorAll('.log-cb:checked')).map(cb => cb.value);
+
+ // 1) If some checkboxes are selected, delete ONLY those
+ if (selected.length > 0) {
+ if (!confirm('Are you sure you want to delete history?')) {
+ selectCols.forEach(col => col.classList.remove('visible'));
+ document.querySelectorAll('.log-cb').forEach(cb => cb.checked = false);
+ return;
+ }
+ try {
+ const r = await fetch('/api/admin/login-logs/delete', {
+ method: 'POST',
+ headers: {'Content-Type': 'application/json'},
+ body: JSON.stringify({ ids: selected })
+ });
+ const d = await r.json();
+ if (!r.ok) { showPageAlert(d.error || 'Delete failed.', 'error'); return; }
+ showPageAlert(d.message || 'Selected logs deleted.', 'success');
+ loadLogs();
+ } catch(e) {
+ showPageAlert('Network error: ' + e.message, 'error');
+ }
+ return;
+ }
+
+ // 2) If no checkboxes are selected, ask to delete ALL logs
+ if (!confirm('Are you sure you want to delete all history?')) {
+ selectCols.forEach(col => col.classList.remove('visible'));
+ return;
+ }
  try {
  const r = await fetch('/api/admin/login-logs/clear', { method: 'DELETE' });
  const d = await r.json();
  if (!r.ok) { showPageAlert(d.error || 'Clear failed.', 'error'); return; }
- showPageAlert(d.message || 'Login history cleared.', 'success');
+ showPageAlert(d.message || 'All login history cleared.', 'success');
  loadLogs();
  } catch(e) {
  showPageAlert('Network error: ' + e.message, 'error');
  }
 }
+
+function toggleAllLogs(source) {
+ document.querySelectorAll('.log-cb').forEach(cb => cb.checked = source.checked);
+}
+
+
 
 init();
 </script>
