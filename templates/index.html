@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8"/>
+ <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+ <title>TalentIQ · Enterprise Recruitment Suite</title>
+ <link rel="preconnect" href="https://fonts.googleapis.com">
+ <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+ <!-- 
+ STYLES → edit: css/styles.css -->
+ <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+
+<!-- 
+ TOP BAR (logo row + nav tabs)
+ To edit layout/branding → pages/topbar.html (reference)
+ To edit nav logic → js/tabs.js
+ -->
+<div style="background:var(--sidebar);position:sticky;top:0;z-index:200;box-shadow:0 1px 0 rgba(0,0,0,.25)">
+ <!-- Row 1: TalentIQ + auth bar -->
+ <div style="height:44px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid rgba(255,255,255,.08);gap:12px">
+ <span style="font-family:'IBM Plex Sans',sans-serif;font-size:18px;font-weight:700;color:#fff;letter-spacing:0.02em;flex:1">TalentIQ</span>
+ <span id="backendBadge" title="Backend parsing active" style="display:none;background:rgba(54,179,126,.15);border:1px solid rgba(54,179,126,.3);color:#57D9A3;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:600;flex-shrink:0"> Backend NLP</span>
+ <div id="adminLink" style="display:none"><a href="/admin" style="font-size:12px;color:rgba(255,255,255,.7);text-decoration:none;padding:3px 10px;border:1px solid rgba(255,255,255,.2);border-radius:5px;background:rgba(255,255,255,.08)"> Users</a></div>
+ <div id="authBar" style="display:flex;align-items:center;gap:8px;flex-shrink:0"></div>
+ </div>
+ <!-- Row 2: Demo Mode badge + step nav -->
+ <div style="height:44px;display:flex;align-items:center;padding:0 16px;gap:4px;overflow-x:auto">
+ <span id="topbar-mode-badge" class="topbar-badge" style="flex-shrink:0;margin-right:8px">Demo Mode</span>
+ <div style="width:1px;height:22px;background:rgba(255,255,255,.15);flex-shrink:0;margin-right:4px"></div>
+ <button class="tnav-btn active" id="tnav-setup" onclick="gotoTab('setup')" style="height:44px">
+ <span class="step-num">1</span> Job Setup</button>
+ <button class="tnav-btn" id="tnav-screening" onclick="gotoTab('screening')" style="height:44px">
+ <span class="step-num">2</span> AI Screening</button>
+ <button class="tnav-btn" id="tnav-results" onclick="gotoTab('results')" style="height:44px">
+ <span class="step-num">3</span> Results & Rankings</button>
+ <button class="tnav-btn" id="tnav-report" onclick="gotoTab('report')" style="height:44px">
+ <span class="step-num">4</span> Eval Report</button>
+ </div>
+</div>
+
+
+<!-- 
+ PAGE 1 — JOB SETUP
+ To edit layout → pages/setup.html (reference)
+ To edit logic → js/ui.js
+ -->
+<div id="page-setup" class="page active page-setup">
+ <div class="section-header">
+ <div><h1>Job & Candidate Setup</h1>
+ <p>Configure the job description and upload resumes before running screening.</p>
+ </div>
+ </div>
+
+ <div class="setup-grid">
+ <!-- LEFT: Job Description -->
+ <div style="display:flex;flex-direction:column;gap:16px">
+ <div class="card">
+ <div class="card-header">
+ <h2>Job Description</h2>
+ <div style="display:flex;align-items:center;gap:8px">
+ <div onclick="document.getElementById('jdFileInput').click()" class="btn btn-default btn-sm" style="cursor:pointer">Upload JD</div>
+ <input id="jdFileInput" type="file" accept=".pdf,.doc,.docx,.txt" style="display:none" onchange="handleJDFile(this.files[0])"/>
+ <span id="jdFileSt" style="font-size:11px;color:var(--success);display:none"></span>
+ </div>
+ </div>
+ <div class="card-body" style="padding:14px">
+ <textarea id="jdArea" class="input-field" rows="22" placeholder="Paste the job description here, or upload above…" oninput="updateJDStats()"></textarea>
+ </div>
+ <div class="jd-stats-footer" style="padding:10px 14px;border-top:1px solid var(--border);background:var(--surface2);border-radius:0 0 8px 8px;display:flex;gap:24px;align-items:center">
+ <div style="display:flex;align-items:center;gap:6px">
+ <div style="width:8px;height:8px;border-radius:50%;background:var(--primary)"></div>
+ <span style="font-size:12px;color:var(--text3)">Words:</span>
+ <span id="jdWords" style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:var(--text2)">0</span>
+ </div>
+ <div style="display:flex;align-items:center;gap:6px">
+ <div style="width:8px;height:8px;border-radius:50%;background:#FF991F"></div>
+ <span style="font-size:12px;color:var(--text3)">Bullet points:</span>
+ <span id="jdBullets" style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:var(--text2)">0</span>
+ </div>
+ <div class="support-text" style="margin-left:auto;font-size:11px;color:var(--text4)">Supports PDF, DOC, TXT</div>
+ </div>
+ </div>
+ </div>
+
+ <!-- RIGHT: Candidates & Settings -->
+ <div style="display:flex;flex-direction:column;gap:14px">
+
+ <!-- Screening Mode -->
+ <div class="card">
+ <div class="card-header">
+ <h2> Screening Mode</h2>
+ </div>
+ <div class="card-body">
+ <div style="display:flex;gap:8px;margin-bottom:12px">
+ <div class="mode-card active" id="modeDemo" onclick="setMode('demo')">
+ <div class="mc-title">Demo Mode</div>
+ <div class="mc-sub">Instant results, no API key needed</div>
+ </div>
+ <div class="mode-card" id="modeLive" onclick="setMode('live')">
+ <div class="mc-title">Live AI (API Key)</div>
+ <div class="mc-sub">Real AI analysis</div>
+ </div>
+ </div>
+ <div id="demoInfo" class="alert alert-info" style="font-size:11px">
+ <span>&#8505;</span>
+ <span>Runs instantly with <strong>no API key</strong> — generates realistic simulated results.
+ <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--primary);font-weight:600;display:block;margin-top:3px">Get a free Gemini API key &#8594;</a></span>
+ </div>
+ <div id="liveInfo" style="display:none">
+  <!-- AI PROVIDER DROPDOWN -->
+  <div class="field-label" style="margin-bottom:4px">AI PROVIDER</div>
+  <select id="aiProvider" class="input-field" style="margin-bottom:10px;cursor:pointer" onchange="updateProviderUI()">
+    <option value="claude">Claude (Anthropic)</option>
+    <option value="openai">OpenAI (GPT-4o)</option>
+    <option value="gemini">Gemini (Google)</option>
+  </select>
+
+  <!-- API KEY INPUT -->
+  <div class="field-label" style="margin-bottom:4px">API KEY</div>
+  <input id="apiKey" type="password" placeholder="sk-ant-…" class="input-field" style="font-family:'IBM Plex Mono',monospace;font-size:12px"/>
+  <div style="font-size:11px;color:var(--text3);margin-top:5px;display:flex;justify-content:space-between;align-items:center">
+    <span>Stays in-browser only</span>
+    <a id="getKeyLink" href="https://console.anthropic.com" target="_blank" style="color:var(--primary);font-weight:600">Get Claude key &#8594;</a>
+  </div>
+</div>
+ </div>
+ </div>
+
+ <!-- Candidates Upload -->
+ <div class="card">
+ <div class="card-header">
+ <h2>Candidates</h2>
+ <span id="cand-count-badge" class="badge badge-neutral">0 added</span>
+ </div>
+ <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
+ <div id="dropzone" class="upload-zone"
+ ondragover="event.preventDefault();this.style.borderColor='var(--primary)';this.style.background='var(--primary-light)'"
+ ondragleave="this.style.borderColor='';this.style.background=''"
+ ondrop="event.preventDefault();this.style.borderColor='';this.style.background='';handleResumeFiles(event.dataTransfer.files)"
+ onclick="document.getElementById('resumeFilesInput').click()">
+ <div class="uz-icon">&#128196;</div>
+ <div style="font-size:13px;font-weight:600;color:var(--text2)">Drag & drop resume files</div>
+ <div style="font-size:11px;color:var(--text3);margin-top:3px">PDF. DOC/DOCX .TXT</div>
+ <div class="btn btn-default btn-sm" style="margin-top:10px;pointer-events:none">Browse Files</div>
+ <input id="resumeFilesInput" type="file" multiple accept=".pdf,.doc,.docx,.txt" style="display:none" onchange="handleResumeFiles(this.files)"/>
+ </div>
+ <div id="dropSt" style="display:none"></div>
+ <div id="resumeList"></div>
+ <details style="border:1px solid var(--border);border-radius:6px;overflow:hidden">
+ <summary style="padding:10px 12px;background:var(--surface2);cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);list-style:none;display:flex;align-items:center;justify-content:space-between">
+ <span>Add Manually</span><span style="color:var(--text4);font-weight:400">expand</span>
+ </summary>
+ <div style="padding:12px;display:flex;flex-direction:column;gap:8px">
+ <div><div class="field-label">Candidate Name</div><input id="mName" placeholder="e.g. Rahul Mehta" class="input-field"/></div>
+ <div><div class="field-label">Current Role</div><input id="mRole" placeholder="e.g. Senior Developer" class="input-field"/></div>
+ <div><div class="field-label">Resume Text</div><textarea id="mText" placeholder="Paste resume content…" rows="3" class="input-field" style="min-height:80px"></textarea></div>
+ <button onclick="addManual()" class="btn btn-default" style="width:100%;justify-content:center">+ Add Candidate</button>
+ </div>
+ </details>
+ </div>
+ </div>
+
+ <!-- ATS Toggle -->
+ <div class="card" style="padding:14px 16px">
+ <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+ <div>
+ <div style="font-size:13px;font-weight:600;color:var(--text)">ATS Compatibility Check</div>
+ <div style="font-size:11px;color:var(--text3);margin-top:2px">Analyse keyword match, formatting &amp; sections</div>
+ </div>
+ <div id="atsToggle" class="toggle on" onclick="toggleATS()"><div id="atsThumb" class="toggle-thumb"></div></div>
+ </div>
+ </div>
+ </div>
+ </div>
+
+ <!-- Sticky footer: Run button -->
+ <div class="sticky-footer" style="position:sticky;bottom:0;z-index:50;background:var(--surface);border-top:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;box-shadow:0 -2px 8px rgba(0,0,0,.06)">
+ <div id="runError" style="display:none;flex:1" class="alert alert-error"></div>
+ <div class="scroll-btns-wrap" style="display:flex;align-items:center;gap:10px;margin-left:auto">
+ <button id="runBtn" onclick="runScreening()" class="btn btn-primary btn-lg" style="min-width:220px;justify-content:center;font-size:14px;border-radius:6px;height:42px">
+ <span>&#9654;</span><span>Start Screening + ATS Check (0)</span>
+ </button>
+ </div>
+ </div>
+</div>
+
+
+<!-- 
+ PAGE 2 — AI SCREENING
+ To edit layout → pages/screening.html (reference)
+ To edit logic → js/screening.js
+ -->
+<div id="page-screening" class="page" style="display:none">
+ <div class="section-header">
+ <button onclick="goBackFromScreening()" class="btn btn-default btn-sm" style="color:var(--text3);flex-shrink:0">Back to Setup</button>
+ <div style="width:1px;height:22px;background:var(--border);flex-shrink:0"></div>
+ <div><h1>AI Screening <span id="atsLbl" style="color:var(--primary)">+ ATS Analysis</span></h1><p>Analysing candidates in real time.</p></div>
+ <div style="margin-left:auto;flex-shrink:0"><div id="demoBanner" style="display:none"><span class="badge badge-info">DEMO MODE</span></div></div>
+ </div>
+ <div style="max-width:860px;margin:0 auto;padding:clamp(14px,4vw,24px) clamp(12px,4vw,20px);width:100%">
+ <div class="sc-progress-wrap" style="margin-bottom:16px">
+ <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+ <span id="pgLabel" style="font-size:13px;color:var(--text2);font-weight:500">Initializing…</span>
+ <span id="pgCount" style="font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--primary)">0 / 0</span>
+ </div>
+ <div class="progress-track" style="height:10px"><div id="pgFill" class="progress-fill" style="width:0%;background:var(--primary)"></div></div>
+ </div>
+ <div id="scCards" style="margin-bottom:16px"></div>
+ <div class="log-box">
+ <div style="color:rgba(255,255,255,.3);font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px">System Log</div>
+ <div id="logLines"></div>
+ </div>
+ <!-- Completion banner — shown when screening finishes -->
+ <div id="completionBanner" style="display:none;margin-top:20px;background:var(--success-bg);border:1.5px solid var(--success-border);border-radius:10px;padding:20px 24px;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+ <div style="display:flex;align-items:center;gap:14px">
+ <div>
+ <div style="font-size:15px;font-weight:700;color:var(--success)">Screening Complete!</div>
+ <div style="font-size:12px;color:#3D7A5E;margin-top:2px">All candidates analysed and ranked. Click to view results.</div>
+ </div>
+ </div>
+ <button onclick="gotoTab('results')" class="btn btn-success btn-lg" style="display:flex;align-items:center;gap:8px;border-radius:8px;height:46px;font-size:14px;flex-shrink:0">
+ View Results & Ranknings
+ </button>
+ </div>
+ </div>
+</div>
+
+
+<!-- 
+ PAGE 3 — RESULTS & RANKINGS
+ To edit layout → pages/results.html (reference)
+ To edit logic → js/results.js
+ -->
+<div id="page-results" class="page" style="display:none">
+ <div class="section-header">
+ <button onclick="goBackFromResults()" class="btn btn-default btn-sm" style="color:var(--text3);flex-shrink:0">Back to Screening</button>
+ <div style="width:1px;height:22px;background:var(--border);flex-shrink:0"></div>
+ <div><h1>Results & Rankings</h1><p>Candidates ranked by match score.</p></div>
+ </div>
+ <div style="max-width:1280px;margin:0 auto;padding:clamp(10px,3vw,20px);width:100%">
+ <div id="statsRow" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px"></div>
+ <div class="results-grid" style="gap:16px">
+ <div>
+ <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap">
+ <div class="section-label" style="margin-bottom:0">Ranked Candidates</div>
+ <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+ <input id="candidateSearch" type="text" placeholder=" Search name / skill…" oninput="filterCandidates()" style="padding:5px 10px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:var(--surface2);color:var(--text);width:160px;outline:none"/>
+ <select id="filterScore" onchange="filterCandidates()" style="padding:5px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:var(--surface2);color:var(--text);cursor:pointer">
+ <option value="all">All Scores</option>
+ <option value="excellent">Excellent ≥80</option>
+ <option value="good">Good 60-79</option>
+ <option value="fair">Fair 40-59</option>
+ <option value="weak">Weak &lt;40</option>
+ </select>
+ <select id="filterSort" onchange="filterCandidates()" style="padding:5px 8px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:var(--surface2);color:var(--text);cursor:pointer">
+ <option value="score">Sort: Score</option>
+ <option value="name">Sort: Name A-Z</option>
+ <option value="ats">Sort: ATS</option>
+ </select>
+ </div>
+ </div>
+ <div id="filterInfo" style="font-size:11px;color:var(--text3);margin-bottom:6px;display:none"></div>
+ <div id="rankList" style="display:flex;flex-direction:column;gap:8px"></div>
+ </div>
+ <div class="card" style="align-self:start">
+ <div id="detailEmpty" class="detail-empty">
+ <div style="font-weight:600;font-size:15px;color:var(--text2)">Select a Candidate</div>
+ <div style="font-size:12px;color:var(--text4);max-width:220px">Click any candidate to view Match Analysis and ATS Report.</div>
+ </div>
+ <div id="detailInner" style="display:none">
+ <div class="tab-bar">
+ <button id="dtab-match" class="tab-btn active" onclick="showDetailTab('match')">Match Analysis</button>
+ <button id="dtab-explain" class="tab-btn" onclick="showDetailTab('explain')">Skill Breakdown</button>
+ <button id="dtab-parsed" class="tab-btn" onclick="showDetailTab('parsed')">Parsed Resume</button>
+ <button id="dtab-ats" class="tab-btn" onclick="showDetailTab('ats')">ATS Report <span id="atsBadge" style="display:none;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:3px"></span></button>
+ <button id="dtab-resume" class="tab-btn" onclick="showDetailTab('resume')">Resume</button>
+ </div>
+ <div style="padding:clamp(12px,3vw,20px);max-height:min(640px,70vh);overflow-y:auto">
+ <div id="pMatch"></div>
+ <div id="pExplain" style="display:none"></div>
+ <div id="pParsed" style="display:none"></div>
+ <div id="pATS" style="display:none"></div>
+ <div id="pResume" style="display:none"></div>
+ </div>
+ </div>
+ </div>
+ </div>
+ <!-- Bottom actions -->
+ <div style="margin-top:20px;display:flex;align-items:center;justify-content:center;gap:12px">
+ <button onclick="gotoTab('report')" class="btn btn-primary" style="display:flex;align-items:center;gap:8px;padding:10px 20px;font-size:14px;font-weight:600;border-radius:8px">
+ View Evaluation Report
+ </button>
+ </div>
+ </div>
+</div>
+
+
+<!-- 
+ PAGE 4 — EVALUATION REPORT
+ To edit layout → pages/report.html (reference)
+ To edit logic → js/report.js
+ To edit export → js/export.js
+ -->
+<div id="page-report" class="page" style="display:none">
+ <div class="section-header">
+ <button onclick="gotoTab('results')" class="btn btn-default btn-sm" style="color:var(--text3);flex-shrink:0">Back to Results</button>
+ <div style="width:1px;height:22px;background:var(--border);flex-shrink:0"></div>
+ <div>
+ <h1>Model Evaluation & Accuracy Report</h1>
+ <p>Precision, recall, F1 score, bias indicators and performance metrics.</p>
+ </div>
+ <div style="margin-left:auto;display:flex;gap:8px;position:relative">
+ <button onclick="refreshEvalMetrics()" class="btn btn-default btn-sm" style="display:flex;align-items:center;gap:5px">Refresh Metrics</button>
+ <button onclick="toggleExportMenu()" id="exportMenuBtn" class="btn btn-primary btn-sm" style="display:flex;align-items:center;gap:6px">Export</button>
+ <div id="exportMenu" style="display:none;position:absolute;right:0;top:38px;background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:300;min-width:165px;overflow:hidden">
+ <button onclick="exportAsPDF()" style="width:100%;text-align:left;padding:10px 14px;background:none;border:none;border-bottom:1px solid var(--border);font-size:13px;font-family:inherit;color:var(--text2);cursor:pointer" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='none'">Export as PDF</button>
+ <button onclick="exportAsDOC()" style="width:100%;text-align:left;padding:10px 14px;background:none;border:none;font-size:13px;font-family:inherit;color:var(--text2);cursor:pointer" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='none'"> Export as DOC</button>
+ </div>
+ </div>
+ </div>
+ <div style="max-width:1260px;margin:0 auto;padding:clamp(12px,3vw,20px);width:100%">
+ <div id="evalMainContainer"></div>
+  <!-- Bottom action -->
+  <div style="margin-top:24px;display:flex;justify-content:center">
+   <button onclick="newScreening()" class="btn btn-default" style="padding:10px 28px;font-size:14px;font-weight:600;border-radius:8px">New Screening</button>
+  </div>
+ </div>
+</div>
+
+
+<!-- 
+ MODAL — Resume Preview
+ To edit layout → pages/modal.html (reference)
+ To edit logic → js/panels.js
+ -->
+<div id="modal" onclick="closeModal()" style="display:none;position:fixed;inset:0;background:rgba(23,43,77,.5);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;padding:24px">
+ <div onclick="event.stopPropagation()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;width:100%;max-width:700px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+ <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:var(--surface2)">
+ <div>
+ <div id="mName2" style="font-weight:700;font-size:15px;color:var(--text)"></div>
+ <div id="mMeta" style="color:var(--text3);font-size:12px;margin-top:1px"></div>
+ </div>
+ <div style="display:flex;gap:8px">
+ <button id="mCopyBtn" onclick="modalCopy()" class="btn btn-default btn-sm">Copy</button>
+ <button onclick="closeModal()" class="btn btn-default btn-sm" style="width:30px;padding:0;font-size:16px">&#215;</button>
+ </div>
+ </div>
+ <div id="mBody" style="overflow-y:auto;padding:20px 24px;flex:1;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.8"></div>
+ </div>
+</div>
+
+
+<!-- 
+ JAVASCRIPT — loaded in dependency order
+ Each file is self-contained. Edit freely.
+ -->
+<script src="{{ url_for('static', filename='js/state.js') }}"></script> <!-- Global vars, constants, helper functions -->
+<script src="{{ url_for('static', filename='js/init.js') }}"></script> <!-- App startup, window.onload -->
+<script src="{{ url_for('static', filename='js/tabs.js') }}"></script> <!-- Page navigation (gotoTab) -->
+<script src="{{ url_for('static', filename='js/ui.js') }}"></script> <!-- Resume list, file upload, mode selector -->
+<script src="{{ url_for('static', filename='js/engine.js') }}"></script> <!-- Demo scoring engine -->
+<script src="{{ url_for('static', filename='js/api.js') }}"></script> <!-- Claude API wrapper -->
+<script src="{{ url_for('static', filename='js/screening.js') }}"></script> <!-- Screening loop, progress, log, banner -->
+<script src="{{ url_for('static', filename='js/results.js') }}"></script> <!-- Results page, rank list, candidate panel -->
+<script src="{{ url_for('static', filename='js/panels.js') }}"></script> <!-- Match/ATS/Resume panels + modal -->
+<script src="{{ url_for('static', filename='js/report.js') }}"></script> <!-- Evaluation report builder -->
+<script src="{{ url_for('static', filename='js/export.js') }}"></script> <!-- Export as PDF / DOC -->
+
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8"/>
+ <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+ <title>TalentIQ · HR Login</title>
+ <link rel="preconnect" href="https://fonts.googleapis.com">
+ <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+ <style>
+ *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+ :root{--primary:#0052CC;--primary-d:#0747A6;--surface:#FFFFFF;--bg:#F4F5F7;--border:#DFE1E6;--text:#172B4D;--text2:#344563;--text3:#5E6C84;--danger:#DE350B;--danger-bg:#FFEBE6}
+ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+ .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:40px;width:100%;max-width:420px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+ .logo{text-align:center;margin-bottom:32px}
+ .logo-text{font-size:22px;font-weight:700;color:var(--text)}
+ .logo-sub{font-size:13px;color:var(--text3);margin-top:4px}
+ h1{font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px}
+ .subtitle{font-size:13px;color:var(--text3);margin-bottom:24px}
+ label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
+ .field{margin-bottom:16px}
+ input{width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;color:var(--text);background:var(--surface);transition:border-color .15s;outline:none}
+ input:focus{border-color:var(--primary)}
+ .btn-login{width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;transition:background .15s;margin-top:4px}
+ .btn-login:hover{background:var(--primary-d)}
+ .btn-login:disabled{opacity:.6;cursor:not-allowed}
+ #errMsg{display:none;background:var(--danger-bg);border:1px solid #FFBDAD;border-radius:6px;padding:10px 14px;font-size:13px;color:var(--danger);margin-bottom:14px}
+ </style>
+</head>
+<body>
+<div class="card">
+ <div class="logo">
+ <div class="logo-text">TalentIQ</div>
+ <div class="logo-sub">Enterprise Recruitment Suite</div>
+ </div>
+ <h1>HR Dashboard Login</h1>
+ <p class="subtitle">Sign in to access the screening dashboard</p>
+
+ <div id="errMsg"></div>
+
+ <div class="field">
+ <label>Email Address</label>
+ <input type="email" id="emailInput" placeholder="e.g. admin@talentiq.com" autocomplete="email"/>
+ </div>
+ <div class="field">
+ <label>Password</label>
+ <input type="password" id="pwInput" placeholder="••••••••" autocomplete="current-password"/>
+ </div>
+ <button class="btn-login" id="loginBtn" onclick="doLogin()">Sign In</button>
+</div>
+
+<script>
+ async function doLogin() {
+ const email = document.getElementById('emailInput').value.trim();
+ const pw = document.getElementById('pwInput').value;
+ const err = document.getElementById('errMsg');
+ const btn = document.getElementById('loginBtn');
+ err.style.display = 'none';
+
+ if (!email || !pw) {
+ err.textContent = 'Please enter your email and password.';
+ err.style.display = 'block';
+ return;
+ }
+
+ btn.disabled = true; btn.textContent = 'Signing in…';
+ try {
+ const r = await fetch('/api/login', {
+ method: 'POST',
+ headers: { 'Content-Type': 'application/json' },
+ body: JSON.stringify({ email, password: pw })
+ });
+ const d = await r.json();
+ if (!r.ok) {
+ err.textContent = d.error || 'Invalid email or password.';
+ err.style.display = 'block';
+ btn.disabled = false; btn.textContent = 'Sign In';
+ document.getElementById('pwInput').value = '';
+ document.getElementById('pwInput').focus();
+ return;
+ }
+ window.location.href = '/';
+ } catch(e) {
+ err.textContent = 'Network error. Please try again.';
+ err.style.display = 'block';
+ btn.disabled = false; btn.textContent = 'Sign In';
+ }
+ }
+
+ document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>
